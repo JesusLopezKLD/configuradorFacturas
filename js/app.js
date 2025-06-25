@@ -7,6 +7,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadBtn = document.getElementById('loadJson');
   const dataContainer = document.getElementById('dataFields');
   const tabs = document.querySelectorAll('.tabs li');
+  const modal = document.getElementById('modal');
+  const modalCols = document.getElementById('modalCols');
+  const modalRows = document.getElementById('modalRows');
+  const modalOk = document.getElementById('modalOk');
+  const modalCancel = document.getElementById('modalCancel');
+  let modalCallback = null;
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -24,8 +30,41 @@ document.addEventListener('DOMContentLoaded', () => {
   page.addEventListener('dragover', e => e.preventDefault());
   page.addEventListener('drop', handleDrop);
 
+  modalOk.addEventListener('click', () => {
+    modal.classList.remove('active');
+    if (modalCallback) {
+      modalCallback(parseInt(modalCols.value, 10), parseInt(modalRows.value, 10));
+      modalCallback = null;
+    }
+  });
+  modalCancel.addEventListener('click', () => {
+    modal.classList.remove('active');
+    modalCallback = null;
+  });
+
+  function openModal(cols, rows, cb) {
+    modalCols.value = cols;
+    modalRows.value = rows;
+    modalCallback = cb;
+    modal.classList.add('active');
+  }
+
   function handleDrop(e) {
     e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith('image/')) {
+        const img = createBaseElement('image');
+        const imageEl = document.createElement('img');
+        imageEl.src = URL.createObjectURL(file);
+        imageEl.style.maxWidth = '200px';
+        img.appendChild(imageEl);
+        img.style.left = e.offsetX + 'px';
+        img.style.top = e.offsetY + 'px';
+        page.appendChild(img);
+        return;
+      }
+    }
     const data = e.dataTransfer.getData('text/plain');
     if (!data) return;
     if (data === '__image__') {
@@ -89,10 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   addTableBtn.addEventListener('click', () => {
-    let cols = parseInt(prompt('Número de columnas', '2'), 10);
-    if (!cols || cols < 1) cols = 2;
-    const el = createTableElement(cols);
-    page.appendChild(el);
+    openModal(2, 1, (cols, rows) => {
+      if (!cols || cols < 1) cols = 1;
+      if (!rows || rows < 1) rows = 1;
+      const el = createTableElement(cols, rows);
+      page.appendChild(el);
+    });
   });
 
   saveBtn.addEventListener('click', saveDesign);
@@ -126,19 +167,35 @@ document.addEventListener('DOMContentLoaded', () => {
     return el;
   }
 
-  function createTableElement(cols) {
+  function createTableElement(cols, rows) {
     const el = createBaseElement('table');
     const table = document.createElement('table');
     table.border = '1';
-    const row = document.createElement('tr');
+    table.style.width = '100%';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
     for (let i = 0; i < cols; i++) {
-      const td = document.createElement('td');
-      td.textContent = 'Celda';
-      td.addEventListener('dragover', ev => ev.preventDefault());
-      td.addEventListener('drop', handleDrop);
-      row.appendChild(td);
+      const th = document.createElement('th');
+      th.textContent = 'Col ' + (i + 1);
+      headRow.appendChild(th);
     }
-    table.appendChild(row);
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (let r = 0; r < rows; r++) {
+      const row = document.createElement('tr');
+      for (let c = 0; c < cols; c++) {
+        const td = document.createElement('td');
+        td.textContent = 'Celda';
+        td.addEventListener('dragover', ev => ev.preventDefault());
+        td.addEventListener('drop', handleDrop);
+        row.appendChild(td);
+      }
+      tbody.appendChild(row);
+    }
+    table.appendChild(tbody);
     el.appendChild(table);
 
     const cfg = document.createElement('div');
@@ -153,34 +210,45 @@ document.addEventListener('DOMContentLoaded', () => {
   function configureTable(wrapper) {
     const table = wrapper.querySelector('table');
     if (!table) return;
-    let cols = table.rows[0] ? table.rows[0].cells.length : 1;
-    const newCols = parseInt(prompt('Número de columnas', cols), 10);
-    if (newCols && newCols !== cols) {
-      Array.from(table.rows).forEach(row => {
-        while (row.cells.length < newCols) {
-          const td = row.insertCell();
-          td.textContent = 'Celda';
-          td.addEventListener('dragover', ev => ev.preventDefault());
-          td.addEventListener('drop', handleDrop);
+    const headerRow = table.tHead ? table.tHead.rows[0] : null;
+    const currentCols = headerRow ? headerRow.cells.length : 1;
+    openModal(currentCols, 0, (newCols, addRows) => {
+      if (newCols && newCols !== currentCols) {
+        // update header
+        while (headerRow.cells.length < newCols) {
+          const th = document.createElement('th');
+          th.textContent = 'Col ' + (headerRow.cells.length + 1);
+          headerRow.appendChild(th);
         }
-        while (row.cells.length > newCols) {
-          row.deleteCell(row.cells.length - 1);
+        while (headerRow.cells.length > newCols) {
+          headerRow.deleteCell(headerRow.cells.length - 1);
         }
-      });
-      cols = newCols;
-    }
-    const addRows = parseInt(prompt('Añadir filas', '0'), 10);
-    if (addRows && addRows > 0) {
-      for (let r = 0; r < addRows; r++) {
-        const row = table.insertRow();
-        for (let c = 0; c < cols; c++) {
-          const td = row.insertCell();
-          td.textContent = 'Celda';
-          td.addEventListener('dragover', ev => ev.preventDefault());
-          td.addEventListener('drop', handleDrop);
+        // update body rows
+        Array.from(table.tBodies[0].rows).forEach(row => {
+          while (row.cells.length < newCols) {
+            const td = row.insertCell();
+            td.textContent = 'Celda';
+            td.addEventListener('dragover', ev => ev.preventDefault());
+            td.addEventListener('drop', handleDrop);
+          }
+          while (row.cells.length > newCols) {
+            row.deleteCell(row.cells.length - 1);
+          }
+        });
+      }
+      if (addRows && addRows > 0) {
+        const cols = newCols || currentCols;
+        for (let r = 0; r < addRows; r++) {
+          const row = table.tBodies[0].insertRow();
+          for (let c = 0; c < cols; c++) {
+            const td = row.insertCell();
+            td.textContent = 'Celda';
+            td.addEventListener('dragover', ev => ev.preventDefault());
+            td.addEventListener('drop', handleDrop);
+          }
         }
       }
-    }
+    });
   }
 
   function createBaseElement(type) {
@@ -317,6 +385,8 @@ document.addEventListener('DOMContentLoaded', () => {
         cfg.textContent = '⚙';
         cfg.addEventListener('click', () => configureTable(el));
         el.appendChild(cfg);
+        const table = el.querySelector('table');
+        if (table) table.style.width = '100%';
         el.querySelectorAll('td').forEach(td => {
           td.addEventListener('dragover', ev => ev.preventDefault());
           td.addEventListener('drop', handleDrop);
