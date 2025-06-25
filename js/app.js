@@ -54,11 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith('image/')) {
-        const img = createBaseElement('image');
-        const imageEl = document.createElement('img');
-        imageEl.src = URL.createObjectURL(file);
-        imageEl.style.maxWidth = '200px';
-        img.appendChild(imageEl);
+        const img = createImageElement(URL.createObjectURL(file));
         img.style.left = e.offsetX + 'px';
         img.style.top = e.offsetY + 'px';
         page.appendChild(img);
@@ -74,11 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
       input.addEventListener('change', () => {
         const file = input.files[0];
         if (file) {
-          const img = createBaseElement('image');
-          const imageEl = document.createElement('img');
-          imageEl.src = URL.createObjectURL(file);
-          imageEl.style.maxWidth = '200px';
-          img.appendChild(imageEl);
+          const img = createImageElement(URL.createObjectURL(file));
           img.style.left = e.offsetX + 'px';
           img.style.top = e.offsetY + 'px';
           page.appendChild(img);
@@ -116,11 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('change', () => {
       const file = input.files[0];
       if (file) {
-        const img = createBaseElement('image');
-        const imageEl = document.createElement('img');
-        imageEl.src = URL.createObjectURL(file);
-        imageEl.style.maxWidth = '200px';
-        img.appendChild(imageEl);
+        const img = createImageElement(URL.createObjectURL(file));
         page.appendChild(img);
       }
     });
@@ -162,9 +150,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function createTextElement(content) {
     const el = createBaseElement('text');
-    el.textContent = content;
-    el.contentEditable = true;
+    const span = document.createElement('div');
+    span.textContent = content;
+    span.contentEditable = true;
+    span.style.width = '100%';
+    span.style.height = '100%';
+    el.appendChild(span);
     return el;
+  }
+
+  function createImageElement(src) {
+    const wrapper = createBaseElement('image');
+    wrapper.style.width = '200px';
+    wrapper.style.height = '200px';
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.draggable = false;
+    wrapper.appendChild(img);
+
+    const cfg = document.createElement('div');
+    cfg.className = 'config-btn';
+    cfg.textContent = '⚙';
+    cfg.addEventListener('click', () => configureImage(wrapper));
+    wrapper.appendChild(cfg);
+    return wrapper;
   }
 
   function createTableElement(cols, rows) {
@@ -188,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const row = document.createElement('tr');
       for (let c = 0; c < cols; c++) {
         const td = document.createElement('td');
-        td.textContent = 'Celda';
+        td.textContent = '';
         td.addEventListener('dragover', ev => ev.preventDefault());
         td.addEventListener('drop', handleDrop);
         row.appendChild(td);
@@ -227,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Array.from(table.tBodies[0].rows).forEach(row => {
           while (row.cells.length < newCols) {
             const td = row.insertCell();
-            td.textContent = 'Celda';
+            td.textContent = '';
             td.addEventListener('dragover', ev => ev.preventDefault());
             td.addEventListener('drop', handleDrop);
           }
@@ -242,13 +253,42 @@ document.addEventListener('DOMContentLoaded', () => {
           const row = table.tBodies[0].insertRow();
           for (let c = 0; c < cols; c++) {
             const td = row.insertCell();
-            td.textContent = 'Celda';
+            td.textContent = '';
             td.addEventListener('dragover', ev => ev.preventDefault());
             td.addEventListener('drop', handleDrop);
           }
         }
       }
     });
+  }
+
+  function configureImage(wrapper) {
+    const img = wrapper.querySelector('img');
+    if (!img) return;
+    const w = prompt('Ancho (px)', parseInt(img.style.width) || img.naturalWidth);
+    if (w) {
+      img.style.width = w + 'px';
+      wrapper.style.width = w + 'px';
+    }
+    const h = prompt('Alto (px)', parseInt(img.style.height) || img.naturalHeight);
+    if (h) {
+      img.style.height = h + 'px';
+      wrapper.style.height = h + 'px';
+    }
+    const op = prompt('Opacidad (0-1)', img.style.opacity || '1');
+    if (op !== null) {
+      img.style.opacity = op;
+    }
+  }
+
+  function addImageConfig(el) {
+    const existing = el.querySelector('.config-btn');
+    if (existing) existing.remove();
+    const cfg = document.createElement('div');
+    cfg.className = 'config-btn';
+    cfg.textContent = '⚙';
+    cfg.addEventListener('click', () => configureImage(el));
+    el.appendChild(cfg);
   }
 
   function createBaseElement(type) {
@@ -298,10 +338,19 @@ document.addEventListener('DOMContentLoaded', () => {
       document.addEventListener('pointermove', resize);
       document.addEventListener('pointerup', stop);
     });
-    function resize(e) {
-      el.style.width = startW + (e.clientX - startX) + 'px';
-      el.style.height = startH + (e.clientY - startY) + 'px';
-    }
+   function resize(e) {
+      const newW = startW + (e.clientX - startX);
+      const newH = startH + (e.clientY - startY);
+      el.style.width = newW + 'px';
+      el.style.height = newH + 'px';
+      if (el.dataset.type === 'image') {
+        const img = el.querySelector('img');
+        if (img) {
+          img.style.width = newW + 'px';
+          img.style.height = newH + 'px';
+        }
+      }
+   }
     function stop() {
       document.removeEventListener('pointermove', resize);
       document.removeEventListener('pointerup', stop);
@@ -371,11 +420,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (item.type === 'text') {
         el = createTextElement('');
         el.innerHTML = item.html;
+        el.querySelectorAll('.delete-handle').forEach(d => d.remove());
         addDelete(el);
+        el.contentEditable = true;
       } else if (item.type === 'image') {
         el = createBaseElement('image');
         el.innerHTML = item.html;
+        el.querySelectorAll('.delete-handle').forEach(d => d.remove());
+        el.querySelectorAll('.config-btn').forEach(c => c.remove());
+        addImageConfig(el);
         addDelete(el);
+        const img = el.querySelector('img');
+        if (img) {
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.draggable = false;
+        }
       } else if (item.type === 'table') {
         el = createBaseElement('table');
         el.innerHTML = item.html;
