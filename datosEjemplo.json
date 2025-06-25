@@ -1,0 +1,21 @@
+{
+  "cliente": {
+    "nombre": "Juan Pérez",
+    "codigo": "CLI-1023",
+    "direccion": "Calle Falsa 123",
+    "email": "juan@example.com"
+  },
+  "factura": {
+    "numero": "FAC-2025-001",
+    "serie": "A",
+    "fecha": "2025-06-25",
+    "total": "1520.50",
+    "iva": "20%"
+  },
+  "servicio": {
+    "descripcion": "Servicio de mantenimiento técnico",
+    "precio": "1200.00",
+    "fechaInicio": "2025-06-01",
+    "fechaFin": "2025-06-10"
+  }
+}

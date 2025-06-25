@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurador de Facturas</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="folio" class="dropzone"></div>
+    <div id="panel">
+      <ul class="tabs">
+        <li data-tab="elementos" class="active">Elementos</li>
+        <li data-tab="datos">Datos</li>
+      </ul>
+      <div id="elementos" class="tab-content active">
+        <button id="addText">Texto</button>
+        <button id="addImage">Imagen</button>
+        <button id="addTable">Tabla</button>
+      </div>
+      <div id="datos" class="tab-content">
+        <div id="dataFields"></div>
+      </div>
+    </div>
+  </div>
+  <script src="js/app.js"></script>
+</body>
+</html>
