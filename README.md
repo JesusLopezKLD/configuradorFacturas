@@ -10,4 +10,4 @@ Este proyecto es una prueba de un configurador de facturas visual que funciona t
 - `configuraciones/`: carpeta donde se almacenan los formatos exportados.
 
 ## Uso
-Abre `index.html` en tu navegador y empieza a arrastrar los elementos desde el panel derecho. Puedes mover, redimensionar y rotar cada elemento. Usa los botones **Guardar** y **Cargar** para conservar tu diseño en el navegador.
+Abre `index.html` en tu navegador y empieza a arrastrar los elementos desde el panel derecho. Puedes mover, redimensionar, rotar y eliminar cada elemento. Las tablas permiten configurar columnas y filas desde el icono de engranaje que aparece al pasar el ratón. Usa los botones **Guardar** y **Cargar** para conservar tu diseño en el navegador.

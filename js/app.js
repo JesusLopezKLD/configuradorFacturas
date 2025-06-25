@@ -22,19 +22,52 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(data => renderDataFields(data));
 
   page.addEventListener('dragover', e => e.preventDefault());
-  page.addEventListener('drop', e => {
+  page.addEventListener('drop', handleDrop);
+
+  function handleDrop(e) {
     e.preventDefault();
-    const text = e.dataTransfer.getData('text/plain');
-    if (text) {
-      const el = createTextElement(text);
+    const data = e.dataTransfer.getData('text/plain');
+    if (!data) return;
+    if (data === '__image__') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', () => {
+        const file = input.files[0];
+        if (file) {
+          const img = createBaseElement('image');
+          const imageEl = document.createElement('img');
+          imageEl.src = URL.createObjectURL(file);
+          imageEl.style.maxWidth = '200px';
+          img.appendChild(imageEl);
+          img.style.left = e.offsetX + 'px';
+          img.style.top = e.offsetY + 'px';
+          page.appendChild(img);
+        }
+      });
+      input.click();
+      return;
+    }
+
+    if (e.target.tagName === 'TD') {
+      e.target.textContent += data;
+    } else if (e.target.classList.contains('element') && e.target.dataset.type === 'text') {
+      e.target.textContent += data;
+    } else {
+      const el = createTextElement(data);
       el.style.left = e.offsetX + 'px';
       el.style.top = e.offsetY + 'px';
       page.appendChild(el);
     }
-  });
+  }
 
   addTextBtn.addEventListener('click', () => {
     page.appendChild(createTextElement('Texto'));
+  });
+
+  addImageBtn.draggable = true;
+  addImageBtn.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('text/plain', '__image__');
   });
 
   addImageBtn.addEventListener('click', () => {
@@ -56,8 +89,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   addTableBtn.addEventListener('click', () => {
-    const el = createBaseElement('table');
-    el.innerHTML = '<table border="1" contenteditable="true"><tr><td>Celda</td><td>Celda</td></tr></table>';
+    let cols = parseInt(prompt('Número de columnas', '2'), 10);
+    if (!cols || cols < 1) cols = 2;
+    const el = createTableElement(cols);
     page.appendChild(el);
   });
 
@@ -92,6 +126,63 @@ document.addEventListener('DOMContentLoaded', () => {
     return el;
   }
 
+  function createTableElement(cols) {
+    const el = createBaseElement('table');
+    const table = document.createElement('table');
+    table.border = '1';
+    const row = document.createElement('tr');
+    for (let i = 0; i < cols; i++) {
+      const td = document.createElement('td');
+      td.textContent = 'Celda';
+      td.addEventListener('dragover', ev => ev.preventDefault());
+      td.addEventListener('drop', handleDrop);
+      row.appendChild(td);
+    }
+    table.appendChild(row);
+    el.appendChild(table);
+
+    const cfg = document.createElement('div');
+    cfg.className = 'config-btn';
+    cfg.textContent = '⚙';
+    cfg.addEventListener('click', () => configureTable(el));
+    el.appendChild(cfg);
+
+    return el;
+  }
+
+  function configureTable(wrapper) {
+    const table = wrapper.querySelector('table');
+    if (!table) return;
+    let cols = table.rows[0] ? table.rows[0].cells.length : 1;
+    const newCols = parseInt(prompt('Número de columnas', cols), 10);
+    if (newCols && newCols !== cols) {
+      Array.from(table.rows).forEach(row => {
+        while (row.cells.length < newCols) {
+          const td = row.insertCell();
+          td.textContent = 'Celda';
+          td.addEventListener('dragover', ev => ev.preventDefault());
+          td.addEventListener('drop', handleDrop);
+        }
+        while (row.cells.length > newCols) {
+          row.deleteCell(row.cells.length - 1);
+        }
+      });
+      cols = newCols;
+    }
+    const addRows = parseInt(prompt('Añadir filas', '0'), 10);
+    if (addRows && addRows > 0) {
+      for (let r = 0; r < addRows; r++) {
+        const row = table.insertRow();
+        for (let c = 0; c < cols; c++) {
+          const td = row.insertCell();
+          td.textContent = 'Celda';
+          td.addEventListener('dragover', ev => ev.preventDefault());
+          td.addEventListener('drop', handleDrop);
+        }
+      }
+    }
+  }
+
   function createBaseElement(type) {
     const el = document.createElement('div');
     el.className = 'element';
@@ -101,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addDrag(el);
     addResize(el);
     addRotate(el);
+    addDelete(el);
     return el;
   }
 
@@ -174,6 +266,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function addDelete(el) {
+    const del = document.createElement('div');
+    del.className = 'delete-handle';
+    del.textContent = '✖';
+    del.addEventListener('click', e => {
+      e.stopPropagation();
+      el.remove();
+    });
+    el.appendChild(del);
+  }
+
   function saveDesign() {
     const data = [];
     page.querySelectorAll('.element').forEach(el => {
@@ -200,12 +303,24 @@ document.addEventListener('DOMContentLoaded', () => {
       if (item.type === 'text') {
         el = createTextElement('');
         el.innerHTML = item.html;
+        addDelete(el);
       } else if (item.type === 'image') {
         el = createBaseElement('image');
         el.innerHTML = item.html;
+        addDelete(el);
       } else if (item.type === 'table') {
         el = createBaseElement('table');
         el.innerHTML = item.html;
+        addDelete(el);
+        const cfg = document.createElement('div');
+        cfg.className = 'config-btn';
+        cfg.textContent = '⚙';
+        cfg.addEventListener('click', () => configureTable(el));
+        el.appendChild(cfg);
+        el.querySelectorAll('td').forEach(td => {
+          td.addEventListener('dragover', ev => ev.preventDefault());
+          td.addEventListener('drop', handleDrop);
+        });
       }
       el.style.left = item.x;
       el.style.top = item.y;
